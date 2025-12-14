@@ -1,0 +1,45 @@
+\usepackage{acro}
+
+% workaround for
+% https://bitbucket.org/cgnieder/acro/issues/120/having-an-acronym-in-plural-form-the-first
+\let\IDeclareAcronym\DeclareAcronym
+\renewcommand{\DeclareAcronym}[2]{%
+  \IDeclareAcronym{#1}{%
+    #2,foreign-plural={}
+  }
+}
+
+\DeclareAcronym{rrt}{
+  short = RRT$^*$,
+  long = Rapidly-exploring Random Tree
+}
+
+\DeclareAcronym{ara}{
+  short = ARA$^*$,
+  long = Anytime Repairing A$^*$
+}
+
+\DeclareAcronym{plrrt}{
+  short = PL-RRT$^*$,
+  long = Path Length Rapidly-exploring Random Tree
+}
+
+\DeclareAcronym{plara}{
+  short = PL-ARA$^*$,
+  long = Path Length Anytime Repairing A$^*$
+}
+
+\DeclareAcronym{mcrrt}{
+  short = MC-RRT$^*$,
+  long = Motion Cost Rapidly-exploring Random Tree
+}
+
+\DeclareAcronym{mcara}{
+  short = MC-ARA$^*$,
+  long = Motion Cost Anytime Repairing A$^*$
+}
+
+\DeclareAcronym{knn}{
+  short = $k$-NN,
+  long = $k$-nearest neighbors,
+}

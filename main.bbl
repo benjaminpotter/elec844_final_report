@@ -20,4 +20,9 @@
 \bibitem{tolstaya_rkk:planning_atc}
 E.~Tolstaya, A.~Ribeiro, V.~Kumar, and A.~Kapoor, ``Inverse optimal planning for air traffic control,'' in \emph{2019 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 2019, pp. 7535--7542.
 
+\bibitem{tange:parallel}
+\BIBentryALTinterwordspacing
+O.~Tange, \emph{GNU Parallel 2018}.\hskip 1em plus 0.5em minus 0.4em\relax Ole Tange, Apr. 2018. [Online]. Available: \url{https://doi.org/10.5281/zenodo.1146014}
+\BIBentrySTDinterwordspacing
+
 \end{thebibliography}
