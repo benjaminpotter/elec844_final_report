@@ -194,6 +194,13 @@ Then, I normalize the counts so they fall between 0 and 1.
 \ac{plara}
 \ac{mcara}
 
+Weighted sampling for RRT based on penalty
+\begin{itemize}
+  \item Tried rejection sampling but it didn't work because the low
+    penalty regions are small compared to the sampling space which
+    meant we spent too much time trying to randomly sample inside it
+\end{itemize}
+
 \subsection{Experiments}
 
 \begin{itemize}
