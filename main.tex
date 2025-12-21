@@ -54,9 +54,9 @@
 \pagestyle{empty}
 
 \begin{abstract}
-  Air traffic control services face increasing demand while
+  \Ac{atc} services face increasing demand while
   recruitment and training of new personnel remains slow.
-  This work explores autonomous planning for air traffic control by
+  This work explores autonomous planning for \ac{atc} by
   implementing and comparing graph-based and sampling-based motion
   planning algorithms.
   I model aircraft using the Dubins airplane model and formalize the
@@ -75,7 +75,7 @@
   regions.
   The learned penalty function successfully captures common flight
   routes and provides a principled approach for incorporating human
-  expertise into automated air traffic control systems.
+  expertise into automated \ac{atc} systems.
 \end{abstract}
 \acresetall
 
@@ -110,18 +110,19 @@ This penalty function is incorporated into the cost metric used by
 motion planning algorithms.
 I implement and compare two planning approaches: \ac{ara}, a
 graph-based planner, and \ac{rrt}, a sampling-based planner.
-I choose a sampling-based approach as one of the tested methods
-because the continuous configuration space does not contain narrow
-passages, which makes sampling-based methods particularly well-suited
-for this domain.
+The \ac{ara} approach was originally proposed by Tolstaya et al., and
+I adapt it for use in this work~\cite{tolstaya_rkk:planning_atc}.
+% I choose a sampling-based approach as one of the tested methods
+% because the continuous configuration space does not contain narrow
+% passages, which makes sampling-based methods particularly well-suited
+% for this domain.
 
 The contributions of this work are threefold.
-First, I present a novel offline method for learning the penalty
+First, I present an offline method for learning the penalty
 function from human trajectories that differs from prior inverse
 reinforcement learning approaches.
 Second, I develop and compare implementations of both graph-based and
-sampling-based planners on the air traffic control problem using real
-flight data.
+sampling-based planners on the \ac{atc} problem using real flight data.
 Third, I demonstrate that sampling-based methods face significant
 challenges in this domain due to the combination of non-holonomic
 constraints and small goal regions, which suggests that heuristic-guided
@@ -139,19 +140,17 @@ Section~\ref{sec:results} presents the results.
 Finally, Section~\ref{sec:conclusion} concludes with a discussion of
 future work.
 
-\cite{tolstaya_rkk:planning_atc}
-
 \section{BACKGROUND} \label{sec:background}
 
 I model the state of an airplane using the Dubins airplane model, a
 four-dimensional system with a configuration space, $S = \mathbb{R}^3
-\times [-\pi, \pi)$, with $s = (x, y, z, \theta)$~\cite{}.
+\times [-\pi, \pi)$, with $s = (x, y, z, \theta)$.
 In this model, $x$, $y$, and $z$ describe the coordinates of the
 airplane in three-dimensional euclidean space, and $\theta$ is the
 bearing of the airplane relative to the $+x$ axis.
 The spatial dimensions of the state space are described using
 \ac{enu} conventions.
-This means the $x$, $y$, and $z$ axes are aligned with east, north,
+The convention aligns the $x$, $y$, and $z$ axes with the east, north,
 and up directions, respectively.
 
 The system is controlled through the first derivatives of altitude
@@ -190,12 +189,12 @@ One of the challenges with formalizing the planning problem is
 quantifying the true cost of a trajectory.
 I start by providing the formalization for the naive \ac{pl} cost metric.
 This metric is naive because it ignores many of the safety
-constraints that human air traffic controllers must consider.
+constraints that human experts must consider.
 In other words, the shortest path trajectory is often not the best.
 Then, I describe a formalization based on a learned penalty function
 which aims to encode these extraneous constraints in a cost function
 that can be minimized.
-The formalization of the planning problem for air traffic control I use is
+The formalization of the planning problem for \ac{atc} I use is
 first presented by Tolstaya et al.~\cite{tolstaya_rkk:planning_atc}.
 
 The \ac{pl} cost metric is based on the Dubins distance.
@@ -244,7 +243,12 @@ using the \ac{mc}.
   & s(t) \in S, u(t) \in U  \nonumber
 \end{align}
 
-\todo{Define the goal region.}
+Rather than requiring that $s(T)~=~s_g$ directly in Eqn.~\ref{equ:pl_prob_def}
+and Eqn.~\ref{equ:mc_prob_def}, I introduce a region of states which
+count as the goal.
+I define the goal region as any state within \numprint{0.5}
+kilometers for the $xy$ axes, \numprint{0.25} kilometers for the
+$z$-axis, and \numprint{0.125} radians for the $\theta$-axis bounds of $s_g$.
 
 From these two definitions of the planning problem, I derive four
 different planners which I study in this work.
@@ -252,12 +256,21 @@ I implement two variants of \ac{ara} which use the \ac{pl} and
 \ac{mc} cost functions and call them \ac{plara} and \ac{mcara}, respectively.
 Similarly, I implement two variants of \ac{rrt} called \ac{plrrt} and
 \ac{mcrrt}.
-The \ac{ara} implementations are inspired by Tolstaya et
-al. from~\cite{tolstaya_rkk:planning_atc}.
 
 \section{ANYTIME REPAIRING A$^*$} \label{sec:ara}
 
-\todo{What do we do for epsilon?}
+The \ac{ara} planner operates over a graph representation of the
+configuration space.
+It works by iteratively expanding the current minimum cost states which have
+the highest likelihood of being on the optimal path to the goal.
+The rules for moving between states are defined by a set of
+fixed-time motion primitives that are derived from the kinodynamic
+constraints of the airplane.
+In the following section, I explain my implementation of \ac{ara}
+including the configuration space discretization, the fixed-time
+motion primitives, and the cost function.
+My implementation follows the example presented
+in~\cite{tolstaya_rkk:planning_atc}.
 
 \Ac{ara} is a graph-based planner which requires a discretization of
 the configuration space.
@@ -271,8 +284,6 @@ The discretized configuration space is still too large to store in
 memory, so I construct the graph lazily as the planner explores.
 This will impact runtime as the planner needs to perform memory
 allocations on-the-fly.
-This discretization follows the example provided
-in~\cite{tolstaya_rkk:planning_atc}.
 
 \begin{equation} \label{equ:discretize}
   \bar{s} =
@@ -284,15 +295,41 @@ in~\cite{tolstaya_rkk:planning_atc}.
   \right]
 \end{equation}
 
-I also discretize the control space $U$ and time into fixed-time
-motion primitives.
-These motion primitives define what states are reachable over a single edge.
-Time is fixed to an interval of $\Delta t = 30$ seconds.
+The fixed-time motion primitives define the allowable edges between
+states in the graph.
+I choose to fix the time interval of every edge to $\Delta t = 30$ seconds.
+From there, I construct a set of allowed control inputs for the
+altitude and bearing.
 The altitude change is chosen from the set $u_z~\in~\{-\Delta z, 0,
 \Delta z\}$ and the bearing from the set $u_\theta~\in~\{-\Delta
 \theta, 0, \Delta \theta\}$.
-I use the definitions from \cite{tolstaya_rkk:planning_atc} which are
-$\Delta z = 6$ meters per second and $\Delta \theta = 0.025$ radians per second.
+I select $\Delta z = 6$ meters per second and $\Delta
+\theta = 0.025$ radians per second.
+These values are representative of the typical control inputs
+available to modern commercial airplanes.
+
+The cost of a state, denoted $f(s)$, is defined as the sum of two
+other distinct costs: the cost-to-come, denoted $g(s)$ and the
+cost-to-go, denoted $h(s)$.
+The cost-to-come to a state $s$ represents the cost of the best path
+(so far) from the starting state to $s$.
+The cost-to-come is computed using the \ac{pl} and \ac{mc} cost functions.
+The cost-to-go for a state $s$ is the expected remaining cost of the
+optimal path from $s$ to the goal state.
+
+The procedure for computing the cost-to-go is defined in
+Algorithm~\ref{alg:dubins}.
+The algorithm considers the $xy$ and $z$ motions of the airplane separately.
+It starts by computing the Dubins curve in the $xy$-plane.
+Then, it uses the constant velocity of the airplane in the $xy$-plane
+to find the minimum time to traverse the Dubins curve.
+Algorithm~\ref{alg:dubins} then attempts to complete any $z$ motion
+within the minimum time.
+If the minimum time is too short, then helical sections are added to
+the trajectory which allow the airplane to descend to the same $xy$
+position and try to complete the $z$ motion again.
+This approach works for most trials, but it is incorrect in cases where
+a helical descent is not feasible.
 
 \begin{algorithm}[t]  %
   \textbf{Input:} Start $s_0$, goal  $s_g$, forward speed $v$,
@@ -322,6 +359,18 @@ $\Delta z = 6$ meters per second and $\Delta \theta = 0.025$ radians per second.
   \end{algorithmic}
   \caption{Dubins Airplane Heuristic}\label{alg:dubins}
 \end{algorithm}
+
+When summing the two distinct costs, the cost-to-go can be inflated
+by a factor $\epsilon$ to encourage the algorithm to move towards the
+goal as quickly as possible.
+This method yields feasible solutions quickly, but such solutions may
+not be optimal.
+In many situations, it is desirable for an algorithm to yield an
+initial solution quickly.
+Then, given more time, progressively improve the solution.
+The \ac{ara} algorithm does this by iteratively deflating the factor
+$\epsilon$ until the solution is optimal.
+In this paper, I initialize each trial with $\epsilon = 3.0$.
 
 \section{RAPIDLY-EXPLORING RANDOM TREE} \label{sec:rrt}
 
@@ -354,7 +403,7 @@ Otherwise, it will sample according to the non-uniform distribution.
 I choose $p_u > 0$ to ensure that the algorithm still explores the full
 search space however infrequently.
 I use the Metropolis-Hastings algorithm to sample from a non-uniform
-distribution~\cite{}.
+distribution.
 While testing, I considered a rejection sampling approach, but I found that this
 inflated the runtime to generate a sample significantly.
 This is likely because the high probability regions of the
@@ -370,18 +419,16 @@ Then, for each iteration $t$, the algorithm proposes a candidate
 sample $s'$ by picking from the distribution $g(s'|s_t)$.
 The candidate sample has an \emph{acceptance ratio} $\alpha~=~f(s')/f(s_t)$.
 The sample is accepted with the probability $\alpha$.
-If the sample is accepted, I set $s_{t+1} = s'$.
-Otherwise, I set $s_{t+1} = s_t$.
-I iterate over candidate samples until one is accepted at which point
-I proceed with the steering procedure.
+If the sample is accepted, the algorithm sets $s_{t+1} = s'$.
+Otherwise, it sets $s_{t+1} = s_t$.
+The algorithm iterates over candidate samples until one is accepted
+at which point it proceeds with the steering procedure.
 
-I use the Metropolis-Hastings algorithm with the proposal function $g$ as a
-standard Gaussian.
 The proposal function takes a state $s_t$ and returns a state $s'$
 according to an offset sampled from a standard Gaussian.
 
 \begin{equation*}
-  s' = g(s_t) = s_t + \mathcal{N}(0, 1)
+  g(s_t) = s' = s_t + \mathcal{N}(0, 1)
 \end{equation*}
 
 For the distribution function $f$, I use an exponential weighted by a
@@ -427,7 +474,7 @@ space, so sampling near the boundaries is often unproductive.
 The steering procedure is defined using the Dubins curve and
 parameterized by the maximum edge length, denoted $\eta$.
 I refer to $\eta$ as the time it takes to traverse an edge rather
-than the distance.
+than the length of the edge.
 Given a sampled state $s'$, the procedure begins by finding the
 nearest state $s''$ to $s'$ that has already been expanded.
 The proximity of two states is measured using the Dubins distance.
@@ -460,44 +507,25 @@ within the state's neighborhood.
 Optimizing the first order edges starts by choosing the lowest cost
 parent and then adopting any neighboring states that would
 benefit (i.e., their cost would decrease).
-A neighborhood is computed as using the \ac{knn} algorithm where $k$
+A neighborhood is computed using the \ac{knn} algorithm where $k$
 is defined by Eqn.~\ref{equ:k}.
-Referring to Eqn.~\ref{equ:k}, the dimensionality of the
-configuration space $n$ is \numprint{4}, and the cardinality of the
-search tree $|V|$ grows as the algorithm adds states.
+The dimensionality of the configuration space $n$ is \numprint{4},
+and the cardinality of the search tree $|V|$ grows as the algorithm adds states.
 
 \begin{equation} \label{equ:k}
   k > e(1 + 1/n)\log(|V|)
 \end{equation}
 
-When \ac{rrt} optimizes neighbors it must ensure that any new edges
-are within the maximum edge length $\eta$ and that they obey the
-kinodynamic constraints of the airplane.
-I do this by computing the Dubins curve for a starting state $s$ and
-a target state $s'$ in the $xy$-plane.
-Given the length of the Dubins curve and the constant velocity of the
-airplane, I find the time to traverse the length.
-If the time to traverse the length is larger than $\eta$, the path is
-not feasible and is discarded.
-This is because the Dubins curve is the shortest path between $s$ and
-$s'$ so all other paths must take at least as long to traverse.
-Then, I handle any changes in altitude between $s$ and $s'$.
-With the time to traverse the Dubins curve in the $xy$-plane, I find
-the maximum possible altitude change using the upper bound on $u_z$.
-If the altitude change between $s$ and $s'$ does not exceed the
-maximum possible alitude change, then the edge is accepted as feasible.
-
 The method of computing the \ac{knn} has a significant
 impact on the performance of \ac{rrt}.
-The \ac{knn} are computed multiple times in a single
-iteration which has an large effect on runtime.
-As the number of states in the tree grows, the algorithm must
-spend more time computing distances.
-The \ac{knn} are also used when perfoming local
-optimization around a new state.
-In this way, the algorithm has a direct impact on which states get
-considered for rewiring.
-
+% The \ac{knn} are computed multiple times in a single
+% iteration which has an large effect on runtime.
+% As the number of states in the tree grows, the algorithm must
+% spend more time computing distances.
+% The \ac{knn} are also used when perfoming local
+% optimization around a new state.
+% In this way, the algorithm has a direct impact on which states get
+% considered for rewiring.
 I test three different distance metrics with \ac{knn}
 that are based on the euclidean distance and the Dubins distance.
 The \emph{\E} metric ranks states by their euclidean
@@ -524,15 +552,19 @@ the tight bound provided by the \D metric.
 
 \begin{figure}[tbp]
   \includegraphics[width=\columnwidth]{figs/knn_benchmarks}
-  \caption{}
+  \caption{
+    A plot comparing the performance of three \ac{knn} metrics used in \ac{rrt}.
+    The $x$-axis shows the number of states that \ac{rrt} has expanded.
+    The $y$-axis shows the number of iterations that \ac{rrt}
+    completes per millisecond in log scale.
+  }
   \label{fig:knn_benchmarks}
 \end{figure}
 
 I compare the performance of \ac{rrt} using different k-nearest neighbor
 metrics in Fig.~\ref{fig:knn_benchmarks}.
 As a measure of performance, I consider the number of iterations that
-\ac{rrt} completes per millisecond which is shown on the y-axis.
-The y-axis is shown in log scale.
+\ac{rrt} completes per millisecond which is shown on the y-axis in log scale.
 I show how this metric changes as the number of states in the
 search tree increases which is shown on the x-axis.
 Each execution of \ac{rrt} is given the same start and goal states and
@@ -549,9 +581,24 @@ to their location in state space, which makes spatial lookups fast.
 This method is often used in implementations of \ac{knn} since it
 does not require searching over all expanded states.
 
-\section{PENALTY FACTOR} \label{sec:penalty}
+When \ac{rrt} optimizes neighbors it must ensure that any new edges
+are within the maximum edge length $\eta$ and that they obey the
+kinodynamic constraints of the airplane.
+I do this by computing the Dubins curve for a starting state $s$ and
+a target state $s'$ in the $xy$-plane.
+Given the length of the Dubins curve and the constant velocity of the
+airplane, I find the time to traverse the length.
+If the time to traverse the length is larger than $\eta$, the path is
+not feasible and is discarded.
+This is because the Dubins curve is the shortest path between $s$ and
+$s'$ so all other paths must take at least as long to traverse.
+Then, I handle any changes in altitude between $s$ and $s'$.
+With the time to traverse the Dubins curve in the $xy$-plane, I find
+the maximum possible altitude change using the upper bound on $u_z$.
+If the altitude change between $s$ and $s'$ does not exceed the
+maximum possible alitude change, then the edge is accepted as feasible.
 
-\todo{introduce the section}
+\section{PENALTY FACTOR} \label{sec:penalty}
 
 The penalty factor is learned from human guided trajectories.
 Broadly speaking, the penalty factor for a state $s$ is on the range
@@ -605,7 +652,14 @@ range $[0, \frac{1}{2}]$.
 \begin{figure}[tbp]
   \centering
   \includegraphics[width=\columnwidth]{figs/penalty}
-  \caption{}
+  \caption{
+    A heatmap showing the mean penalty factor across the $x$ and $y$
+    axes of the configuration space.
+    The $x$-axis represents the $x$ position in kilometers of each state with
+    respect to \ac{sea} using the \ac{enu} convention.
+    The $y$-axis represents the $y$ position in kilometers of each state with
+    respect to \ac{sea} using the \ac{enu} convention.
+  }
   \label{fig:penalty}
 \end{figure}
 
@@ -641,7 +695,7 @@ I collect a dataset of human guided trajectories for benchmarking the
 solutions returned by the planners and constructing the learned penalty factor.
 The dataset contains real flight trajectories recorded during their landings at
 \ac{sea} between January 11 and 14, 2016.
-The raw data for each flight is downloaded from the FlightAware API~\cite{}.
+The raw data for each flight is downloaded from FlightAware.
 The raw data consists of \ac{wgs} positions and heading measurements.
 I process the raw data into a sequence of states which use the
 Dubins airplane model.
@@ -651,10 +705,9 @@ if they were solutions returned by a planner.
 I start by pruning the start of each flight trajectory until it is
 contained in the search space.
 I define the search space using the great-circle distance with
-reference to the \ac{wgs} position of \ac{sea}~\cite{}.
+reference to the \ac{wgs} position of \ac{sea}.
 All positions outside a \numprint{75} kilometer great-circle
 centered at \ac{sea} are excluded from the flight trajectory.
-
 After pruning, I map the raw data from each trajectory into a
 sequence of states.
 The \ac{wgs} positions are converted to spatial coordinates using the
@@ -724,8 +777,10 @@ All the statistical metrics are computed after each runtime period.
 
 \begin{table*}[!t]
   \renewcommand{\arraystretch}{1.3}
-  \caption{Experimental results from the air traffic control
-  planning problem with \ac{ara} and \ac{rrt} variants.}
+  \caption{
+    Experimental results from the ATC planning problem with \ac{ara}
+    and \ac{rrt} variants.
+  }
   \label{tab:results}
   \centering
   \begin{tabular}{llrrrrr}
@@ -813,7 +868,13 @@ I explain how I interpret my findings from them.
 
 \begin{figure}[tbp]
   \includegraphics[width=\columnwidth]{figs/pl_cost_margin_ecdf}
-  \caption{}
+  \caption{
+    A plot of the empirical cummulative density function comparing
+    the cost margin by path length of the \ac{plara} and \ac{plrrt} planners.
+    The $x$-axis represents the cost margin by path length.
+    The $y$-axis represents the probability that a solution has a certain
+    cost margin based on the experimental results for all trials.
+  }
   \label{fig:pl_cost_margins}
 \end{figure}
 
@@ -863,7 +924,13 @@ multiple intermediate states.
 \begin{figure}[tbp]
   \centering
   \includegraphics[width=\columnwidth]{figs/rrt_search_trees}
-  \caption{}
+  \caption{
+    A trajectory plot comparing a solution found by \ac{plrrt} and
+    the human guided reference.
+    The goal region is denoted with a star.
+    The plot axes are expressed using the \ac{enu} convention with
+    the origin at \ac{sea}.
+  }
   \label{fig:rrt_soln}
 \end{figure}
 
@@ -902,7 +969,8 @@ be calculated for each of the candidate neighbors.
 
 In the \ac{mc} variant of \ac{rrt}, I try to address the problem of
 goal reachability by informing the sampling procedure using the
-penalty factor with the aim of increasing the efficiency of each expanded state.
+distance to the goal with the aim of increasing the efficiency of each
+expanded state.
 Unfortunately, even with a non-uniform sampling procedure, the
 \ac{mcrrt} variant does not find the goal region reliably.
 Tab.~\ref{tab:results} shows that only 0.1\% of \ac{mcrrt} trials
@@ -915,22 +983,50 @@ comparison with \ac{ara} difficult.
 As such, my results suggest that the implementations of \ac{rrt} that
 I test here are insufficient for application to this planning problem.
 
-\todo{explain the improvement of mcara}
+Now, I consider the impact of the penalty factor on the solutions
+returned by \ac{ara}.
+I find that the introduction of the penalty factor reduces the
+efficiency of the search.
+In the results shown in Tab.~\ref{tab:results}, \ac{mcara} solves a
+smaller fraction of trials than \ac{plara}, requires longer to find
+an initial solution, has more iterations, and expands more states.
+My result is different than the result obtained
+in~\cite{tolstaya_rkk:planning_atc} where Tolstaya et al. see an increase in the
+efficiency as their learning procedure converges.
+I think that this is likely due to the differences in learning the
+penalty factor.
+It could be the case that \ac{mcara} is attempting to minimize the
+penalty too much and is no longer guided by the heuristic.
+The introduction of a tuning parameter on the importance of the
+penalty may yield more efficient search with \ac{mcara}.
+
+Despite the inefficient search, I find that the solutions returned by
+\ac{mcara} follow the human guided trajectories more closely than \ac{plara}.
+I can't make statistical claims about this result because I did not
+record the \ac{pl} metric for solutions from \ac{mcara}.
+Instead, I present a heuristic case in Fig.~\ref{fig:ara_sols} which shows
+that \ac{mcara} returns a shorter solution than \ac{plara}.
+The figure is formulated using the same method as Fig.~\ref{fig:rrt_soln}.
+The \ac{mcara} trajectory mimics the descent pattern of the human
+trajectory whereas the \ac{plara} trajectory descends very slowly in wide loops.
+The trajectory returned by \ac{mcara} is also much more smooth.
 
 \begin{figure}[tbp]
   \includegraphics[width=\columnwidth]{figs/ara_search_trees}
-  \caption{}
+  \caption{
+    A trajectory plot comparing a solution found by \ac{plara}, \ac{mcara},  and
+    the human guided reference.
+    The goal region is denoted with a star.
+    The plot axes are expressed using the \ac{enu} convention with
+    the origin at \ac{sea}.
+  }
   \label{fig:ara_sols}
 \end{figure}
-
-\todo{explain how the learning method might yield a better penalty}
-
-\todo{when goal region is expanded rrt can find solutions}
 
 \section{CONCLUSION} \label{sec:conclusion}
 
 In this work, I implement and compare graph-based and sampling-based
-planning algorithms for air traffic control using real flight
+planning algorithms for \ac{atc} using real flight
 trajectories from \ac{sea}.
 My results demonstrate that \ac{ara} consistently outperforms \ac{rrt}
 in both finding solutions and achieving costs comparable to
@@ -962,27 +1058,27 @@ Future work should explore alternative penalty learning methods that
 better balance the trade-off between following human examples and
 maintaining computational efficiency.
 
-Several directions for future research emerge from this work.
-First, incorporating a \ac{kdt} for efficient nearest neighbor queries
-in \ac{rrt} could reduce the computational overhead that currently
-limits state expansion.
-Second, the penalty term could be modified to account for the
-exponential effect of airplane frequency on common routes, which may
-better capture the true cost of deviation.
-Third, weighted sampling using the penalty factor could improve
-\ac{rrt} by directly biasing samples toward low-cost regions rather
-than sampling the penalty along edges.
-Fourth, a systematic grid search could tune the sampling parameters to
-optimize performance.
-Finally, reducing the search space size or expanding the goal region
-could make the problem more tractable for sampling-based methods.
-Despite the limitations of the \ac{rrt} implementations tested here,
-the success of \ac{ara} demonstrates that automated planning for air
-traffic control is feasible when appropriate algorithmic choices are made.
-The learned penalty function provides a principled way to incorporate
-human expertise into automated systems, and the experimental framework
-developed in this work provides a foundation for future research in
-this domain.
+Future work should explore several directions to improve the
+performance of automated \ac{atc} planning.
+First, investigating adaptive or learned heuristics for \ac{rrt}
+could help address the goal reachability problem by providing better
+guidance toward feasible solutions.
+Second, the penalty learning approach could be extended to incorporate
+temporal information, such as time-of-day patterns or weather
+conditions, which would better capture the dynamic nature of air
+traffic control decisions.
+Third, the current formulation assumes single-agent planning, but
+realistic \ac{atc} requires coordinating multiple aircraft
+simultaneously.
+Extending these methods to handle multi-agent scenarios with
+inter-airplane safety constraints would be an important step toward
+practical deployment.
+Finally, the discretization parameters for both the configuration
+space and penalty factor should be optimized through systematic
+parameter tuning, as the current choices significantly impact both
+solution quality and computational efficiency.
+Addressing these challenges would move automated \ac{atc} systems
+closer to practical implementation.
 
 \bibliographystyle{./IEEEtran}
 \bibliography{./IEEEabrv.bib, ./references.bib}
